@@ -8,9 +8,7 @@ let settings = {
 async function initPuter() {
     try {
         await puter.init();
-        // После успешной инициализации включаем элементы ввода
-        document.getElementById('user-input').disabled = false;
-        document.getElementById('send-button').disabled = false;
+        console.log('Puter initialized successfully');
     } catch (error) {
         console.error('Failed to initialize Puter:', error);
     }
@@ -148,6 +146,7 @@ async function sendMessage() {
     }
 }
 
+// Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
     initPuter();
     loadFromStorage();
