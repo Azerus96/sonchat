@@ -8,8 +8,16 @@ let settings = {
 async function initPuter() {
     try {
         await puter.init();
+        console.log('Puter initialized successfully');
     } catch (error) {
-        console.error('Failed to initialize Puter:', error);
+        console.error('Puter initialization error:', error);
+        const messagesContainer = document.getElementById('chat-messages');
+        const errorMessage = createMessageElement(
+            'Failed to initialize AI service. Please refresh the page.', 
+            false
+        );
+        errorMessage.classList.add('error-message');
+        messagesContainer.appendChild(errorMessage);
     }
 }
 
@@ -46,7 +54,6 @@ function createMessageElement(content, isUser) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
     
-    // Обработка блоков кода
     const codeBlocks = content.match(/```[\s\S]*?```/g) || [];
     let processedContent = content;
 
@@ -82,6 +89,18 @@ function copyCode(button) {
     }, 2000);
 }
 
+function createRetryButton(message) {
+    const button = document.createElement('button');
+    button.textContent = 'Retry';
+    button.className = 'retry-button';
+    button.onclick = () => {
+        const input = document.getElementById('user-input');
+        input.value = message;
+        sendMessage();
+    };
+    return button;
+}
+
 async function sendMessage() {
     const input = document.getElementById('user-input');
     const messagesContainer = document.getElementById('chat-messages');
@@ -89,17 +108,26 @@ async function sendMessage() {
 
     if (!message) return;
 
-    // Добавляем сообщение пользователя
-    const userMessageElement = createMessageElement(message, true);
-    messagesContainer.appendChild(userMessageElement);
-    
-    // Добавляем в историю
-    conversationHistory.push({ role: 'user', content: message });
-    localStorage.setItem('chatHistory', JSON.stringify(conversationHistory));
-
-    input.value = '';
-
     try {
+        // Добавляем сообщение пользователя
+        const userMessageElement = createMessageElement(message, true);
+        messagesContainer.appendChild(userMessageElement);
+        
+        // Добавляем в историю
+        conversationHistory.push({ role: 'user', content: message });
+        localStorage.setItem('chatHistory', JSON.stringify(conversationHistory));
+
+        input.value = '';
+
+        // Создаём элемент для индикатора загрузки
+        const loadingElement = document.createElement('div');
+        loadingElement.className = 'message ai-message loading-indicator';
+        loadingElement.textContent = 'Thinking...';
+        messagesContainer.appendChild(loadingElement);
+
+        // Прокручиваем к индикатору загрузки
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
         const response = await puter.ai.chat({
             model: 'claude-3-5-sonnet',
             messages: conversationHistory,
@@ -108,6 +136,9 @@ async function sendMessage() {
             maxTokens: settings.maxTokens,
             stream: true
         });
+
+        // Удаляем индикатор загрузки
+        messagesContainer.removeChild(loadingElement);
 
         let aiMessage = '';
         const aiMessageElement = createMessageElement('', false);
@@ -121,7 +152,6 @@ async function sendMessage() {
                 hljs.highlightElement(block);
             });
             
-            // Автопрокрутка
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
@@ -130,9 +160,23 @@ async function sendMessage() {
         localStorage.setItem('chatHistory', JSON.stringify(conversationHistory));
         
     } catch (error) {
-        console.error('Error sending message:', error);
-        const errorMessage = createMessageElement('Error: Failed to get response from AI', false);
+        console.error('Error details:', error);
+        
+        // Создаём элемент для сообщения об ошибке
+        const errorMessage = createMessageElement(
+            `Error: ${error.message || 'Failed to get response from AI. Please try again.'}`, 
+            false
+        );
+        errorMessage.classList.add('error-message');
+        
+        // Добавляем кнопку повтора
+        const retryButton = createRetryButton(message);
+        errorMessage.appendChild(retryButton);
+        
         messagesContainer.appendChild(errorMessage);
+        
+        // Прокручиваем к сообщению об ошибке
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 }
 
