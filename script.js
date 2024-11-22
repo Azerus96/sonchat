@@ -8,16 +8,11 @@ let settings = {
 async function initPuter() {
     try {
         await puter.init();
-        console.log('Puter initialized successfully');
+        // После успешной инициализации включаем элементы ввода
+        document.getElementById('user-input').disabled = false;
+        document.getElementById('send-button').disabled = false;
     } catch (error) {
-        console.error('Puter initialization error:', error);
-        const messagesContainer = document.getElementById('chat-messages');
-        const errorMessage = createMessageElement(
-            'Failed to initialize AI service. Please refresh the page.', 
-            false
-        );
-        errorMessage.classList.add('error-message');
-        messagesContainer.appendChild(errorMessage);
+        console.error('Failed to initialize Puter:', error);
     }
 }
 
@@ -89,18 +84,6 @@ function copyCode(button) {
     }, 2000);
 }
 
-function createRetryButton(message) {
-    const button = document.createElement('button');
-    button.textContent = 'Retry';
-    button.className = 'retry-button';
-    button.onclick = () => {
-        const input = document.getElementById('user-input');
-        input.value = message;
-        sendMessage();
-    };
-    return button;
-}
-
 async function sendMessage() {
     const input = document.getElementById('user-input');
     const messagesContainer = document.getElementById('chat-messages');
@@ -109,23 +92,19 @@ async function sendMessage() {
     if (!message) return;
 
     try {
-        // Добавляем сообщение пользователя
         const userMessageElement = createMessageElement(message, true);
         messagesContainer.appendChild(userMessageElement);
         
-        // Добавляем в историю
         conversationHistory.push({ role: 'user', content: message });
         localStorage.setItem('chatHistory', JSON.stringify(conversationHistory));
 
         input.value = '';
 
-        // Создаём элемент для индикатора загрузки
         const loadingElement = document.createElement('div');
         loadingElement.className = 'message ai-message loading-indicator';
         loadingElement.textContent = 'Thinking...';
         messagesContainer.appendChild(loadingElement);
 
-        // Прокручиваем к индикатору загрузки
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
         const response = await puter.ai.chat({
@@ -137,7 +116,6 @@ async function sendMessage() {
             stream: true
         });
 
-        // Удаляем индикатор загрузки
         messagesContainer.removeChild(loadingElement);
 
         let aiMessage = '';
@@ -155,42 +133,29 @@ async function sendMessage() {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Добавляем ответ в историю
         conversationHistory.push({ role: 'assistant', content: aiMessage });
         localStorage.setItem('chatHistory', JSON.stringify(conversationHistory));
         
     } catch (error) {
-        console.error('Error details:', error);
-        
-        // Создаём элемент для сообщения об ошибке
+        console.error('Error:', error);
         const errorMessage = createMessageElement(
-            `Error: ${error.message || 'Failed to get response from AI. Please try again.'}`, 
+            'Failed to get response. Please try again.',
             false
         );
         errorMessage.classList.add('error-message');
-        
-        // Добавляем кнопку повтора
-        const retryButton = createRetryButton(message);
-        errorMessage.appendChild(retryButton);
-        
         messagesContainer.appendChild(errorMessage);
-        
-        // Прокручиваем к сообщению об ошибке
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 }
 
-// Инициализация
 document.addEventListener('DOMContentLoaded', () => {
     initPuter();
     loadFromStorage();
 
-    // Настройки
     document.getElementById('settings-toggle').addEventListener('click', () => {
         document.getElementById('settings-content').classList.toggle('hidden');
     });
 
-    // Закрытие настроек при клике вне панели
     document.addEventListener('click', (e) => {
         const settingsPanel = document.querySelector('.settings-panel');
         const settingsContent = document.getElementById('settings-content');
@@ -216,7 +181,6 @@ document.addEventListener('DOMContentLoaded', () => {
         saveSettings();
     });
 
-    // Очистка истории
     document.getElementById('clear-history').addEventListener('click', () => {
         if (confirm('Are you sure you want to clear the chat history?')) {
             conversationHistory = [];
@@ -225,8 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Отправка сообщений
     document.getElementById('send-button').addEventListener('click', sendMessage);
+    
     document.getElementById('user-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
